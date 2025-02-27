@@ -33,6 +33,11 @@ export function SendDialog({
 
     setIsSending(true);
     try {
+      toast({
+        title: "Opening WhatsApp Web",
+        description: "Please scan the QR code when prompted",
+      });
+
       const res = await apiRequest("POST", "/api/send-message", {
         phoneNumber: contact.phoneNumber,
         message: template.content,
@@ -90,6 +95,10 @@ export function SendDialog({
               <div>
                 <div className="font-medium">Message:</div>
                 <div className="whitespace-pre-wrap">{template.content}</div>
+              </div>
+
+              <div className="text-sm text-muted-foreground">
+                Note: You'll need to scan the WhatsApp Web QR code to send messages
               </div>
             </>
           )}
