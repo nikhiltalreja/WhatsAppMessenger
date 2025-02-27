@@ -1,4 +1,4 @@
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
 import { broadcastStatus } from "./websocket";
 
 let isConnected = false;
@@ -12,10 +12,16 @@ export function getWhatsAppStatus(): 'disconnected' | 'connecting' | 'connected'
 
 export async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<boolean> {
   try {
-    // Launch the browser with minimal dependencies
+    // If there's an existing browser instance, close it first
+    if (browser) {
+      await browser.close();
+      browser = null;
+    }
+
+    console.log('Launching browser...');
     browser = await puppeteer.launch({
       headless: false, // Need to show browser for QR code scanning
-      executablePath: '/nix/store/chrome/bin/chromium',
+      executablePath: '/usr/bin/chromium',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -30,6 +36,7 @@ export async function sendWhatsAppMessage(phoneNumber: string, message: string):
     });
 
     broadcastStatus('connecting');
+    console.log('Browser launched successfully');
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1920, height: 1080 });
