@@ -51,15 +51,18 @@ export async function connectToWhatsApp(): Promise<boolean> {
     }
 
     browser = await launch({
-      headless: false, // Need to show browser for QR code scanning
+      headless: false,
       executablePath: chromePath,
+      defaultViewport: {
+        width: 1280,
+        height: 800
+      },
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--window-size=1920x1080',
+        '--window-size=1280,800',
+        '--start-maximized',
         '--disable-extensions',
       ]
     });
@@ -68,15 +71,21 @@ export async function connectToWhatsApp(): Promise<boolean> {
     console.log('Browser launched successfully');
 
     page = await browser.newPage();
-    await page.setViewport({ width: 1920, height: 1080 });
+    await page.setViewport({ width: 1280, height: 800 });
+
+    // Enable better error logging
+    page.on('console', msg => console.log('Browser console:', msg.text()));
+    page.on('error', err => console.error('Browser error:', err));
+    page.on('pageerror', err => console.error('Page error:', err));
 
     console.log('Opening WhatsApp Web...');
     await page.goto('https://web.whatsapp.com');
 
-    // Wait for QR code scan and WhatsApp to load
+    // Wait for QR code scan and WhatsApp to load with increased timeout
     console.log('Waiting for QR code scan...');
     await page.waitForSelector('div[data-testid="chat-list"]', { 
-      timeout: 60000 // Give user 1 minute to scan QR code
+      timeout: 120000, // Increase timeout to 2 minutes
+      visible: true 
     });
 
     isConnected = true;
@@ -87,10 +96,13 @@ export async function connectToWhatsApp(): Promise<boolean> {
   } catch (error) {
     console.error('Error connecting to WhatsApp:', error);
     isConnected = false;
-    if (browser) {
-      await browser.close();
-      browser = null;
-      page = null;
+    // Don't close the browser on timeout, let user retry
+    if (!(error instanceof Error && error.message.includes('TimeoutError'))) {
+      if (browser) {
+        await browser.close();
+        browser = null;
+        page = null;
+      }
     }
     broadcastStatus('disconnected');
     return false;
