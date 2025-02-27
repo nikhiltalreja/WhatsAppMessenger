@@ -1,70 +1,49 @@
 # WhatsApp Automation Tool
 
-A simple tool to manage WhatsApp message templates and send messages through WhatsApp Web.
+A tool to manage WhatsApp message templates and send messages through WhatsApp Web.
 
-## Quick Setup
+## Local Development Setup
 
 ### Requirements
 - Node.js (version 18 or later)
-- Chrome or Chromium browser installed on your system
+- Chrome or Chromium browser
+- Git
 
-### Installation
-1. Create the project structure:
+### Quick Start
+
+1. Clone the repository:
 ```bash
-mkdir whatsapp-automation
+git clone https://github.com/yourusername/whatsapp-automation.git
 cd whatsapp-automation
-mkdir -p client/src/components client/src/lib client/src/pages shared server
 ```
 
-2. Download all project files (check the files section below)
-
-3. Install dependencies:
+2. Install dependencies:
 ```bash
 npm install
 ```
 
-4. Start the application:
+3. Start the development server:
 ```bash
 npm run dev
 ```
 
-5. Open `http://localhost:5000` in your browser
+4. Open `http://localhost:5000` in your browser
 
 ### Using the App
-1. Click "Connect" in the header
-2. When prompted, scan the WhatsApp QR code with your phone
-3. Start sending messages:
-   - Add contacts and templates using the interface
+1. Click the "Connect" button in the header
+2. A Chrome window will open with WhatsApp Web
+3. Scan the QR code with your phone's WhatsApp app
+4. After connecting, you can:
+   - Add contacts and templates
    - Select a contact and template
-   - Click "Send" to send your message
+   - Send messages through WhatsApp Web
+
+### Development Notes
+- All data is stored in memory - it will be cleared when you restart the server
+- The Chrome window will stay open while you're connected
+- If the connection times out, just click "Connect" again
 
 ### Troubleshooting
-- Make sure Chrome/Chromium is installed on your system
-- If the QR code doesn't appear, try disconnecting and connecting again
-- Ensure WhatsApp is properly set up on your phone
-
-### Note
-- Messages are sent through WhatsApp Web
-- All data is stored in memory and will be cleared when the server restarts
-
-## Project Files
-
-### Core Files (Copy these first)
-1. package.json
-2. server/index.ts
-3. server/whatsapp.ts
-4. client/src/App.tsx
-5. shared/schema.ts
-
-### Component Files
-1. client/src/components/whatsapp-status.tsx
-2. client/src/components/contacts-list.tsx
-3. client/src/components/message-templates.tsx
-4. client/src/components/send-dialog.tsx
-
-### Configuration Files
-1. tsconfig.json
-2. vite.config.ts
-3. tailwind.config.ts
-4. postcss.config.js
-5. theme.json
+- If the Chrome window is too small, you can resize it manually
+- Make sure you have Chrome or Chromium installed in a standard location
+- If WhatsApp Web doesn't load, try disconnecting and connecting again
