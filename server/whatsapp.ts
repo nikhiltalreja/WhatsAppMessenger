@@ -23,7 +23,7 @@ export async function connectToWhatsApp(): Promise<boolean> {
     console.log('Launching browser...');
     browser = await puppeteer.launch({
       headless: false, // Need to show browser for QR code scanning
-      executablePath: '/usr/bin/chromium',
+      executablePath: '/nix/store/chromium-122.0.6261.111/bin/chromium',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
