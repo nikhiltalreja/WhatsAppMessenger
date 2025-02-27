@@ -1,9 +1,9 @@
-import puppeteer from "puppeteer-core";
+import { Browser, Page, launch } from "puppeteer-core";
 import { broadcastStatus } from "./websocket";
 
 let isConnected = false;
-let browser: puppeteer.Browser | null = null;
-let page: puppeteer.Page | null = null;
+let browser: Browser | null = null;
+let page: Page | null = null;
 
 export function getWhatsAppStatus(): 'disconnected' | 'connecting' | 'connected' {
   if (!browser) return 'disconnected';
@@ -21,7 +21,7 @@ export async function connectToWhatsApp(): Promise<boolean> {
     }
 
     console.log('Launching browser...');
-    browser = await puppeteer.launch({
+    browser = await launch({
       headless: false, // Need to show browser for QR code scanning
       executablePath: '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
       args: [
