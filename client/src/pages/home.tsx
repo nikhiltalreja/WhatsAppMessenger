@@ -1,6 +1,7 @@
 import { ContactsList } from "@/components/contacts-list";
 import { MessageTemplates } from "@/components/message-templates";
 import { SendDialog } from "@/components/send-dialog";
+import { WhatsAppStatus } from "@/components/whatsapp-status";
 import { useState } from "react";
 import { MessageTemplate, Contact } from "@shared/schema";
 
@@ -12,9 +13,12 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b p-4">
-        <h1 className="text-2xl font-bold text-primary">WhatsApp Automation</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-primary">WhatsApp Automation</h1>
+          <WhatsAppStatus />
+        </div>
       </header>
-      
+
       <div className="container mx-auto p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <ContactsList

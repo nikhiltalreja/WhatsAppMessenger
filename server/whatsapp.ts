@@ -1,9 +1,19 @@
 import puppeteer from "puppeteer";
+import { broadcastStatus } from "./websocket";
+
+let isConnected = false;
+let browser: puppeteer.Browser | null = null;
+
+export function getWhatsAppStatus(): 'disconnected' | 'connecting' | 'connected' {
+  if (!browser) return 'disconnected';
+  if (!isConnected) return 'connecting';
+  return 'connected';
+}
 
 export async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<boolean> {
   try {
     // Launch the browser with minimal dependencies
-    const browser = await puppeteer.launch({
+    browser = await puppeteer.launch({
       headless: false, // Need to show browser for QR code scanning
       executablePath: '/nix/store/chrome/bin/chromium',
       args: [
@@ -19,6 +29,8 @@ export async function sendWhatsAppMessage(phoneNumber: string, message: string):
       ]
     });
 
+    broadcastStatus('connecting');
+
     const page = await browser.newPage();
     await page.setViewport({ width: 1920, height: 1080 });
 
@@ -30,6 +42,9 @@ export async function sendWhatsAppMessage(phoneNumber: string, message: string):
     await page.waitForSelector('div[data-testid="chat-list"]', { 
       timeout: 60000 // Give user 1 minute to scan QR code
     });
+
+    isConnected = true;
+    broadcastStatus('connected');
 
     // Format phone number (remove any spaces, dashes, etc)
     const formattedPhone = phoneNumber.replace(/\D/g, '');
@@ -63,10 +78,15 @@ export async function sendWhatsAppMessage(phoneNumber: string, message: string):
     });
 
     console.log('Message sent successfully!');
-    await browser.close();
     return true;
   } catch (error) {
     console.error('Error sending WhatsApp message:', error);
+    isConnected = false;
+    if (browser) {
+      await browser.close();
+      browser = null;
+    }
+    broadcastStatus('disconnected');
     return false;
   }
 }

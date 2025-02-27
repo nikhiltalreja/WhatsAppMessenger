@@ -2,7 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertContactSchema, insertTemplateSchema } from "@shared/schema";
-import { sendWhatsAppMessage } from "./whatsapp";
+import { sendWhatsAppMessage, getWhatsAppStatus } from "./whatsapp";
+import { setupWebSocket } from "./websocket";
 import { z } from "zod";
 
 const sendMessageSchema = z.object({
@@ -57,6 +58,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(204).end();
   });
 
+  // WhatsApp Status
+  app.get("/api/whatsapp-status", (req, res) => {
+    res.json({ status: getWhatsAppStatus() });
+  });
+
   // WhatsApp Sending
   app.post("/api/send-message", async (req, res) => {
     const { phoneNumber, message } = sendMessageSchema.parse(req.body);
@@ -70,5 +76,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  setupWebSocket(httpServer);
   return httpServer;
 }
