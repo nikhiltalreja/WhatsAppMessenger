@@ -11,6 +11,30 @@ export function getWhatsAppStatus(): 'disconnected' | 'connecting' | 'connected'
   return 'connected';
 }
 
+async function findChromePath(): Promise<string | undefined> {
+  const paths = [
+    // Linux
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    // macOS
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    // Windows
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  ];
+
+  for (const path of paths) {
+    try {
+      const fs = await import('fs');
+      if (fs.existsSync(path)) {
+        return path;
+      }
+    } catch {}
+  }
+  return undefined;
+}
+
 export async function connectToWhatsApp(): Promise<boolean> {
   try {
     // If there's an existing browser instance, close it first
@@ -21,9 +45,14 @@ export async function connectToWhatsApp(): Promise<boolean> {
     }
 
     console.log('Launching browser...');
+    const chromePath = await findChromePath();
+    if (!chromePath) {
+      throw new Error('Could not find Chrome/Chromium installation. Please install Chrome or Chromium.');
+    }
+
     browser = await launch({
       headless: false, // Need to show browser for QR code scanning
-      executablePath: '/nix/store/zi4f80l169xlmivz8vja8wlphq74qqk0-chromium-125.0.6422.141/bin/chromium',
+      executablePath: chromePath,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -32,8 +61,6 @@ export async function connectToWhatsApp(): Promise<boolean> {
         '--disable-gpu',
         '--window-size=1920x1080',
         '--disable-extensions',
-        '--disable-features=site-per-process',
-        '--disable-software-rasterizer'
       ]
     });
 
