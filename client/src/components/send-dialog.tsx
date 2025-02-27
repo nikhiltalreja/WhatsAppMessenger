@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { MessageTemplate, Contact } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -27,17 +27,22 @@ export function SendDialog({
 }: SendDialogProps) {
   const { toast } = useToast();
   const [isSending, setIsSending] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      // Check WhatsApp connection status when dialog opens
+      fetch('/api/whatsapp-status')
+        .then(res => res.json())
+        .then(data => setIsConnected(data.status === 'connected'));
+    }
+  }, [open]);
 
   const handleSend = async () => {
     if (!template || !contact) return;
 
     setIsSending(true);
     try {
-      toast({
-        title: "Opening WhatsApp Web",
-        description: "Please scan the QR code when prompted",
-      });
-
       const res = await apiRequest("POST", "/api/send-message", {
         phoneNumber: contact.phoneNumber,
         message: template.content,
@@ -77,6 +82,11 @@ export function SendDialog({
           {!template && (
             <div className="text-destructive">Please select a template first</div>
           )}
+          {!isConnected && (
+            <div className="text-destructive">
+              Please connect to WhatsApp Web first using the connect button in the header
+            </div>
+          )}
 
           {contact && template && (
             <>
@@ -96,10 +106,6 @@ export function SendDialog({
                 <div className="font-medium">Message:</div>
                 <div className="whitespace-pre-wrap">{template.content}</div>
               </div>
-
-              <div className="text-sm text-muted-foreground">
-                Note: You'll need to scan the WhatsApp Web QR code to send messages
-              </div>
             </>
           )}
         </div>
@@ -110,7 +116,7 @@ export function SendDialog({
           </Button>
           <Button
             onClick={handleSend}
-            disabled={!contact || !template || isSending}
+            disabled={!contact || !template || !isConnected || isSending}
           >
             {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Send WhatsApp Message

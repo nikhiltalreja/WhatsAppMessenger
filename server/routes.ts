@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertContactSchema, insertTemplateSchema } from "@shared/schema";
-import { sendWhatsAppMessage, getWhatsAppStatus } from "./whatsapp";
+import { sendWhatsAppMessage, getWhatsAppStatus, connectToWhatsApp, disconnectWhatsApp } from "./whatsapp";
 import { setupWebSocket } from "./websocket";
 import { z } from "zod";
 
@@ -58,20 +58,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(204).end();
   });
 
-  // WhatsApp Status
+  // WhatsApp Connection Management
   app.get("/api/whatsapp-status", (req, res) => {
     res.json({ status: getWhatsAppStatus() });
+  });
+
+  app.post("/api/whatsapp-connect", async (req, res) => {
+    const success = await connectToWhatsApp();
+    if (success) {
+      res.json({ status: "connected" });
+    } else {
+      res.status(500).json({ 
+        status: "error",
+        message: "Failed to connect to WhatsApp" 
+      });
+    }
+  });
+
+  app.post("/api/whatsapp-disconnect", async (req, res) => {
+    await disconnectWhatsApp();
+    res.json({ status: "disconnected" });
   });
 
   // WhatsApp Sending
   app.post("/api/send-message", async (req, res) => {
     const { phoneNumber, message } = sendMessageSchema.parse(req.body);
-    const success = await sendWhatsAppMessage(phoneNumber, message);
 
+    if (getWhatsAppStatus() !== 'connected') {
+      return res.status(400).json({ 
+        success: false, 
+        message: "WhatsApp is not connected. Please connect first." 
+      });
+    }
+
+    const success = await sendWhatsAppMessage(phoneNumber, message);
     if (success) {
       res.json({ success: true });
     } else {
-      res.status(500).json({ success: false, message: "Failed to send WhatsApp message" });
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to send WhatsApp message" 
+      });
     }
   });
 

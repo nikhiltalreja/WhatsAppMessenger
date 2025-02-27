@@ -3,6 +3,7 @@ import { broadcastStatus } from "./websocket";
 
 let isConnected = false;
 let browser: puppeteer.Browser | null = null;
+let page: puppeteer.Page | null = null;
 
 export function getWhatsAppStatus(): 'disconnected' | 'connecting' | 'connected' {
   if (!browser) return 'disconnected';
@@ -10,12 +11,13 @@ export function getWhatsAppStatus(): 'disconnected' | 'connecting' | 'connected'
   return 'connected';
 }
 
-export async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<boolean> {
+export async function connectToWhatsApp(): Promise<boolean> {
   try {
     // If there's an existing browser instance, close it first
     if (browser) {
       await browser.close();
       browser = null;
+      page = null;
     }
 
     console.log('Launching browser...');
@@ -38,7 +40,7 @@ export async function sendWhatsAppMessage(phoneNumber: string, message: string):
     broadcastStatus('connecting');
     console.log('Browser launched successfully');
 
-    const page = await browser.newPage();
+    page = await browser.newPage();
     await page.setViewport({ width: 1920, height: 1080 });
 
     console.log('Opening WhatsApp Web...');
@@ -52,6 +54,27 @@ export async function sendWhatsAppMessage(phoneNumber: string, message: string):
 
     isConnected = true;
     broadcastStatus('connected');
+    console.log('WhatsApp Web connected successfully!');
+    return true;
+
+  } catch (error) {
+    console.error('Error connecting to WhatsApp:', error);
+    isConnected = false;
+    if (browser) {
+      await browser.close();
+      browser = null;
+      page = null;
+    }
+    broadcastStatus('disconnected');
+    return false;
+  }
+}
+
+export async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<boolean> {
+  try {
+    if (!browser || !page || !isConnected) {
+      throw new Error('WhatsApp is not connected. Please connect first.');
+    }
 
     // Format phone number (remove any spaces, dashes, etc)
     const formattedPhone = phoneNumber.replace(/\D/g, '');
@@ -88,12 +111,16 @@ export async function sendWhatsAppMessage(phoneNumber: string, message: string):
     return true;
   } catch (error) {
     console.error('Error sending WhatsApp message:', error);
-    isConnected = false;
-    if (browser) {
-      await browser.close();
-      browser = null;
-    }
-    broadcastStatus('disconnected');
     return false;
   }
+}
+
+export async function disconnectWhatsApp(): Promise<void> {
+  if (browser) {
+    await browser.close();
+    browser = null;
+    page = null;
+  }
+  isConnected = false;
+  broadcastStatus('disconnected');
 }

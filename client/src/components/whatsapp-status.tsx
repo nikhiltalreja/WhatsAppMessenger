@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 type WhatsAppStatus = 'disconnected' | 'connecting' | 'connected';
 
 export function WhatsAppStatus() {
   const [status, setStatus] = useState<WhatsAppStatus>('disconnected');
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Initial status check
@@ -27,6 +31,15 @@ export function WhatsAppStatus() {
             const data = JSON.parse(event.data);
             if (data.type === 'whatsapp_status') {
               setStatus(data.status);
+              if (data.status === 'connected') {
+                setIsLoading(false);
+                toast({
+                  title: "WhatsApp Connected",
+                  description: "Successfully connected to WhatsApp Web"
+                });
+              } else if (data.status === 'disconnected') {
+                setIsLoading(false);
+              }
             }
           } catch (error) {
             console.error('Error parsing WebSocket message:', error);
@@ -56,6 +69,44 @@ export function WhatsAppStatus() {
     };
   }, []);
 
+  const handleConnect = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/whatsapp-connect', { method: 'POST' });
+      if (!res.ok) {
+        throw new Error('Failed to connect to WhatsApp');
+      }
+      toast({
+        description: "Launching WhatsApp Web. Please scan the QR code when prompted."
+      });
+    } catch (error) {
+      toast({
+        title: "Connection Failed",
+        description: "Failed to connect to WhatsApp Web. Please try again.",
+        variant: "destructive"
+      });
+      setIsLoading(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    setIsLoading(true);
+    try {
+      await fetch('/api/whatsapp-disconnect', { method: 'POST' });
+      toast({
+        description: "Disconnected from WhatsApp Web"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to disconnect from WhatsApp Web",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm">WhatsApp Status:</span>
@@ -74,6 +125,27 @@ export function WhatsAppStatus() {
         <Badge variant="destructive">
           Disconnected
         </Badge>
+      )}
+      {status === 'connected' ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDisconnect}
+          disabled={isLoading}
+        >
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+          Disconnect
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleConnect}
+          disabled={isLoading || status === 'connecting'}
+        >
+          {isLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+          Connect
+        </Button>
       )}
     </div>
   );
