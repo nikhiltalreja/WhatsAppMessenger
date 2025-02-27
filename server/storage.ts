@@ -30,11 +30,26 @@ export class MemStorage implements IStorage {
   constructor() {
     this.contacts = new Map();
     this.templates = new Map();
-    this.contactId = 1;
-    this.templateId = 1;
+    this.contactId = 2; // Start from 2 since we're adding one contact
+    this.templateId = 2; // Start from 2 since we're adding one template
+
+    // Add test contact
+    this.contacts.set(1, {
+      id: 1,
+      name: "Nikhil",
+      phoneNumber: "919768199882" // Note: Added without + as it'll be formatted in whatsapp.ts
+    });
+
+    // Add test template
+    this.templates.set(1, {
+      id: 1,
+      name: "Test Message",
+      content: "Hello World! This is a test message.",
+      category: "General"
+    });
   }
 
-  // Contacts
+  // Rest of the methods remain unchanged
   async getContacts(): Promise<Contact[]> {
     return Array.from(this.contacts.values());
   }
