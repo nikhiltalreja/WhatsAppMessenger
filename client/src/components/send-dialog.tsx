@@ -10,6 +10,7 @@ import { MessageTemplate, Contact } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 interface SendDialogProps {
   open: boolean;
@@ -31,21 +32,37 @@ export function SendDialog({
     if (!template || !contact) return;
 
     setIsSending(true);
-    // Simulate sending
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSending(false);
-    onOpenChange(false);
-    toast({
-      title: "Message sent successfully",
-      description: `Sent to ${contact.name} (${contact.phoneNumber})`,
-    });
+    try {
+      const res = await apiRequest("POST", "/api/send-message", {
+        phoneNumber: contact.phoneNumber,
+        message: template.content,
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to send message");
+      }
+
+      toast({
+        title: "Message sent successfully",
+        description: `Sent to ${contact.name} (${contact.phoneNumber})`,
+      });
+      onOpenChange(false);
+    } catch (error) {
+      toast({
+        title: "Failed to send message",
+        description: "Please make sure WhatsApp Web is connected and try again",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Send Message</DialogTitle>
+          <DialogTitle>Send WhatsApp Message</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -87,7 +104,7 @@ export function SendDialog({
             disabled={!contact || !template || isSending}
           >
             {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Message
+            Send WhatsApp Message
           </Button>
         </DialogFooter>
       </DialogContent>

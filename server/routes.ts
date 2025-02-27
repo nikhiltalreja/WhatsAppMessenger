@@ -2,6 +2,13 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertContactSchema, insertTemplateSchema } from "@shared/schema";
+import { sendWhatsAppMessage } from "./whatsapp";
+import { z } from "zod";
+
+const sendMessageSchema = z.object({
+  phoneNumber: z.string(),
+  message: z.string(),
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Contacts
@@ -48,6 +55,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/templates/:id", async (req, res) => {
     await storage.deleteTemplate(Number(req.params.id));
     res.status(204).end();
+  });
+
+  // WhatsApp Sending
+  app.post("/api/send-message", async (req, res) => {
+    const { phoneNumber, message } = sendMessageSchema.parse(req.body);
+    const success = await sendWhatsAppMessage(phoneNumber, message);
+
+    if (success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ success: false, message: "Failed to send WhatsApp message" });
+    }
   });
 
   const httpServer = createServer(app);
