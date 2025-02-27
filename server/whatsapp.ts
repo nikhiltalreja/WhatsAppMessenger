@@ -2,16 +2,20 @@ import puppeteer from "puppeteer";
 
 export async function sendWhatsAppMessage(phoneNumber: string, message: string): Promise<boolean> {
   try {
-    // Launch the browser with specific configurations for Linux
+    // Launch the browser with minimal dependencies
     const browser = await puppeteer.launch({
       headless: false, // Need to show browser for QR code scanning
+      executablePath: '/nix/store/chrome/bin/chromium',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
         '--disable-gpu',
-        '--window-size=1920x1080'
+        '--window-size=1920x1080',
+        '--disable-extensions',
+        '--disable-features=site-per-process',
+        '--disable-software-rasterizer'
       ]
     });
 

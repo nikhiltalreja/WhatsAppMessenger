@@ -49,7 +49,6 @@ export class MemStorage implements IStorage {
     });
   }
 
-  // Rest of the methods remain unchanged
   async getContacts(): Promise<Contact[]> {
     return Array.from(this.contacts.values());
   }
