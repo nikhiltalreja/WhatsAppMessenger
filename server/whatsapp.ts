@@ -39,30 +39,31 @@ export async function connectToWhatsApp(): Promise<boolean> {
   try {
     // If there's an existing browser instance, close it first
     if (browser) {
+      console.log('Closing existing browser instance...');
       await browser.close();
       browser = null;
       page = null;
     }
 
-    console.log('Launching browser...');
+    console.log('Searching for Chrome installation...');
     const chromePath = await findChromePath();
     if (!chromePath) {
       throw new Error('Could not find Chrome/Chromium installation. Please install Chrome or Chromium.');
     }
+    console.log('Found Chrome at:', chromePath);
 
+    console.log('Launching browser with custom settings...');
     browser = await launch({
       headless: false,
       executablePath: chromePath,
-      defaultViewport: null, // Let the browser window control the viewport
+      defaultViewport: null,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--window-size=1280,900',
         '--start-maximized',
-        '--disable-extensions',
         '--disable-gpu',
-        '--disable-infobars',
         '--disable-notifications',
       ]
     });
@@ -70,6 +71,7 @@ export async function connectToWhatsApp(): Promise<boolean> {
     broadcastStatus('connecting');
     console.log('Browser launched successfully');
 
+    console.log('Creating new page...');
     page = await browser.newPage();
 
     // Set up error handling
@@ -77,41 +79,40 @@ export async function connectToWhatsApp(): Promise<boolean> {
     page.on('error', err => console.error('Browser error:', err));
     page.on('pageerror', err => console.error('Page error:', err));
 
-    // Set up request interception for better performance
-    await page.setRequestInterception(true);
-    page.on('request', (request) => {
-      const resourceType = request.resourceType();
-      // Block unnecessary resources
-      if (['image', 'stylesheet', 'font'].includes(resourceType)) {
-        request.abort();
-      } else {
-        request.continue();
-      }
-    });
-
-    console.log('Opening WhatsApp Web...');
+    console.log('Navigating to WhatsApp Web...');
     await page.goto('https://web.whatsapp.com', {
       waitUntil: 'networkidle0',
       timeout: 60000
     });
+    console.log('WhatsApp Web page loaded');
 
-    // Wait for initial page load
-    await page.waitForSelector('div[data-testid="qrcode"], div[data-testid="chat-list"]', {
+    // First wait for either QR code or chat list
+    console.log('Waiting for initial WhatsApp elements...');
+    await page.waitForSelector('[data-testid="qrcode"], [data-testid="chat-list"]', {
       timeout: 30000
     });
+    console.log('Initial elements detected');
 
-    // Check if we need to scan QR code or are already logged in
-    const isQRPresent = await page.evaluate(() => {
-      return !!document.querySelector('div[data-testid="qrcode"]');
+    // Check which element is present
+    const element = await page.evaluate(() => {
+      const qr = document.querySelector('[data-testid="qrcode"]');
+      const chat = document.querySelector('[data-testid="chat-list"]');
+      return { hasQR: !!qr, hasChat: !!chat };
     });
 
-    if (isQRPresent) {
+    if (element.hasQR) {
       console.log('QR code detected, waiting for scan...');
       // Wait for chat list to appear after QR scan
-      await page.waitForSelector('div[data-testid="chat-list"]', {
+      await page.waitForSelector('[data-testid="chat-list"]', {
         timeout: 120000, // 2 minutes timeout for QR scan
         visible: true
+      }).catch(error => {
+        console.log('QR code scan timeout:', error.message);
+        throw new Error('QR code scan timeout - please try again');
       });
+      console.log('QR code scanned successfully');
+    } else if (element.hasChat) {
+      console.log('Already logged in, chat list detected');
     }
 
     isConnected = true;
@@ -132,8 +133,8 @@ export async function connectToWhatsApp(): Promise<boolean> {
       }
     }
 
-    // Close browser on critical errors, but not on timeout
-    if (browser && !(error instanceof Error && error.message.includes('TimeoutError'))) {
+    // Close browser on critical errors, but not on QR timeout
+    if (browser && !(error instanceof Error && error.message.includes('QR code scan timeout'))) {
       await browser.close();
       browser = null;
       page = null;
