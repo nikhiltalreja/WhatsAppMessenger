@@ -53,17 +53,17 @@ export async function connectToWhatsApp(): Promise<boolean> {
     browser = await launch({
       headless: false,
       executablePath: chromePath,
-      defaultViewport: {
-        width: 1280,
-        height: 800
-      },
+      defaultViewport: null, // Let the browser window control the viewport
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--window-size=1280,800',
+        '--window-size=1280,900',
         '--start-maximized',
         '--disable-extensions',
+        '--disable-gpu',
+        '--disable-infobars',
+        '--disable-notifications',
       ]
     });
 
@@ -71,22 +71,48 @@ export async function connectToWhatsApp(): Promise<boolean> {
     console.log('Browser launched successfully');
 
     page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 800 });
 
-    // Enable better error logging
+    // Set up error handling
     page.on('console', msg => console.log('Browser console:', msg.text()));
     page.on('error', err => console.error('Browser error:', err));
     page.on('pageerror', err => console.error('Page error:', err));
 
-    console.log('Opening WhatsApp Web...');
-    await page.goto('https://web.whatsapp.com');
-
-    // Wait for QR code scan and WhatsApp to load with increased timeout
-    console.log('Waiting for QR code scan...');
-    await page.waitForSelector('div[data-testid="chat-list"]', { 
-      timeout: 120000, // Increase timeout to 2 minutes
-      visible: true 
+    // Set up request interception for better performance
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      const resourceType = request.resourceType();
+      // Block unnecessary resources
+      if (['image', 'stylesheet', 'font'].includes(resourceType)) {
+        request.abort();
+      } else {
+        request.continue();
+      }
     });
+
+    console.log('Opening WhatsApp Web...');
+    await page.goto('https://web.whatsapp.com', {
+      waitUntil: 'networkidle0',
+      timeout: 60000
+    });
+
+    // Wait for initial page load
+    await page.waitForSelector('div[data-testid="qrcode"], div[data-testid="chat-list"]', {
+      timeout: 30000
+    });
+
+    // Check if we need to scan QR code or are already logged in
+    const isQRPresent = await page.evaluate(() => {
+      return !!document.querySelector('div[data-testid="qrcode"]');
+    });
+
+    if (isQRPresent) {
+      console.log('QR code detected, waiting for scan...');
+      // Wait for chat list to appear after QR scan
+      await page.waitForSelector('div[data-testid="chat-list"]', {
+        timeout: 120000, // 2 minutes timeout for QR scan
+        visible: true
+      });
+    }
 
     isConnected = true;
     broadcastStatus('connected');
@@ -96,14 +122,23 @@ export async function connectToWhatsApp(): Promise<boolean> {
   } catch (error) {
     console.error('Error connecting to WhatsApp:', error);
     isConnected = false;
-    // Don't close the browser on timeout, let user retry
-    if (!(error instanceof Error && error.message.includes('TimeoutError'))) {
-      if (browser) {
-        await browser.close();
-        browser = null;
-        page = null;
+
+    // Handle specific error cases
+    if (error instanceof Error) {
+      if (error.message.includes('TimeoutError')) {
+        console.log('Connection timed out. Please try scanning the QR code again.');
+      } else if (error.message.includes('net::ERR_')) {
+        console.log('Network error. Please check your internet connection.');
       }
     }
+
+    // Close browser on critical errors, but not on timeout
+    if (browser && !(error instanceof Error && error.message.includes('TimeoutError'))) {
+      await browser.close();
+      browser = null;
+      page = null;
+    }
+
     broadcastStatus('disconnected');
     return false;
   }
@@ -120,13 +155,16 @@ export async function sendWhatsAppMessage(phoneNumber: string, message: string):
     console.log(`Navigating to chat with ${formattedPhone}...`);
 
     // Use WhatsApp's direct chat link
-    await page.goto(`https://web.whatsapp.com/send?phone=${formattedPhone}`);
+    await page.goto(`https://web.whatsapp.com/send?phone=${formattedPhone}`, {
+      waitUntil: 'networkidle0',
+      timeout: 30000
+    });
 
     // Wait for the message input to be ready
     console.log('Waiting for chat to load...');
     const messageInputSelector = 'div[data-testid="conversation-compose-box-input"]';
     await page.waitForSelector(messageInputSelector, { 
-      timeout: 20000,
+      timeout: 30000,
       visible: true 
     });
 
